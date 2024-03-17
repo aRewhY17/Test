@@ -1,0 +1,114 @@
+```{r}
+# Install packages if you haven't already
+install.packages("readxl")
+install.packages("dplyr")
+install.packages("writexl")
+
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(writexl)
+
+```
+```{r}
+card <- read_excel("card.xlsx")
+category <- read_excel("Category.xlsx")
+customer_details <- read_excel("customer_details.xlsx")
+order_relationship <- read_excel("order_relationship1.xlsx")
+order_details <- read_excel("Order-details.xlsx")
+products <- read_excel("products.xlsx")
+suppliers <- read_excel("Suppliers.xlsx")
+transactions <- read_excel("Transactions.xlsx")
+Voucher <- read_excel("Voucher.xlsx")
+
+```
+```{r}
+# Create a full name column in customer_details if not already present
+customer_details <- customer_details %>%
+  mutate(full_name = paste(customer_first_name, customer_last_name))
+
+# Randomly repeat customer entries to update card details
+required_rows <- nrow(card) # Assuming you want to match the number of rows in card
+set.seed(123) # For reproducibility
+
+random_rows <- sample(nrow(customer_details), required_rows, replace = TRUE)
+card_details_updated <- customer_details[random_rows, ] %>%
+  select(Card_Holder_Name = full_name, customer_id)
+
+# Update card dataframe with the new Card_Holder_Name and customer_id
+card$Card_Holder_Name <- card_details_updated$Card_Holder_Name
+card$customer_id <- card_details_updated$customer_id
+
+
+# Save the updated card details
+write_xlsx(card, "updated_card_details1.xlsx")
+
+```
+
+```{r}
+
+# Create a full name column in customer_details
+customer_details <- customer_details %>%
+  mutate(full_name = paste(customer_first_name, customer_last_name))
+
+# Step 2: Randomly repeat customer entries
+required_rows <- 65
+set.seed(123) # For reproducibility
+
+# Randomly select rows, allowing repetition, to fill the card_details
+random_rows <- sample(nrow(customer_details), required_rows, replace = TRUE)
+card_details_updated <- customer_details[random_rows, ] %>%
+  select(Card_Holder_Name = full_name, customer_id)
+
+# Step 3: Export the updated dataset as an Excel file
+write_xlsx(card_details_updated, "updated_card_details.xlsx")
+
+updated_card_details <- read_excel("updated_card_details.xlsx")
+
+card$Card_Holder_Name <- updated_card_details$Card_Holder_Name
+card$customer_id <- updated_card_details$customer_id
+
+write_xlsx(card, "card_details.xlsx")
+
+card_details <- read_excel("card_details.xlsx")
+
+
+```
+
+```{r}
+# Assuming you have two vectors of different lengths
+card_numbers <- rep(card$card_number, length.out = nrow(transactions))
+order_ids <- rep(order_details$order_id, length.out = nrow(transactions))
+
+# Assigning these vectors to transactions
+transactions$card_number <- card_numbers
+transactions$order_id <- order_ids
+
+write_xlsx(transactions, "transactions1.xlsx")
+
+```
+```{r}
+# Map card_number to customer_id
+card_to_customer <- card_details %>% select(card_number, customer_id) %>% distinct()
+
+# Map order_id to customer_id using transactions and the card_to_customer mapping
+transactions <- transactions %>% left_join(card_to_customer, by = "card_number")
+
+# Ensure only unique mappings of order_id to customer_id are used
+# This handles scenarios with multiple transactions per order_id
+order_to_customer <- transactions %>% select(order_id , customer_id) %>% distinct()
+
+# Fill in customer_id in order_relationship using the order_to_customer mapping
+order_relationship_updated <- order_relationship %>%
+  left_join(order_to_customer, by = "order_id")
+
+# Optionally, write the updated dataframe to a new Excel file
+write_xlsx(order_relationship_updated, "order_relationship_updated.xlsx")
+
+# Output the head of the updated dataframe to check the result
+head(order_relationship_updated)
+
+order_relationship_updated$customer_id.x<- order_relationship_updated$customer_id.y
+
+write_xlsx(order_relationship_updated, "order_relationship.xlsx")
+```
